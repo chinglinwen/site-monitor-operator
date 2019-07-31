@@ -1,0 +1,7 @@
+apiVersion: sitemonitor.haodai.com/v1alpha1
+kind: SiteMonitor
+metadata:
+  name: example-sitemonitor
+spec:
+  # Add fields here
+  size: 3
