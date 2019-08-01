@@ -2,6 +2,8 @@ module wen/site-monitor-operator
 
 require (
 	github.com/NYTimes/gziphandler v1.0.1 // indirect
+	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20190731030917-3060fbd7bd1d
+	github.com/davecgh/go-spew v1.1.1
 	github.com/operator-framework/operator-sdk v0.9.1-0.20190724001845-d6e1aba9fa51
 	github.com/spf13/pflag v1.0.3
 	k8s.io/api v0.0.0-20190612125737-db0771252981
