@@ -1,0 +1,34 @@
+{
+				"Period": 60,
+				"GroupName": "",
+				"Webhook": "http://alialert.haodai.net",
+				"EffectiveInterval": "00:00-23:59",
+				"SourceType": "METRIC",
+				"RuleName": "test-独立报警状态码",
+				"GroupId": "",
+				"NoEffectiveInterval": "",
+				"EnableState": false,
+				"AlertState": "ALARM",
+				"MetricName": "StatusCode",
+				"SilenceTime": 86400,
+				"Dimensions": "",
+				"RuleId": "b47607e8-9826-4ba0-8f04-d27c8ca0670b_StatusCode",
+				"Namespace": "acs_networkmonitor",
+				"ContactGroups": "wen",
+				"Escalations": {
+					"Critical": {},
+					"Info": {
+						"Statistics": "ErrorCodeMaximum",
+						"Threshold": "201",
+						"Times": 1,
+						"ComparisonOperator": "GreaterThanOrEqualToThreshold"
+					},
+					"Warn": {}
+				},
+				"MailSubject": "${serviceType}-${metricName}-${levelDescription}通知（${dimensions}）",
+				"Resources": "[{\"taskId\":\"b47607e8-9826-4ba0-8f04-d27c8ca0670b\"}]"
+			}
+
+"[{\"taskId\":\"31bc7843-afd1-44ab-b9ed-67e5314d6095\"}]"
+"[{\"taskId\":\"b47607e8-9826-4ba0-8f04-d27c8ca0670b\"}]"
+31bc7843-afd1-44ab-b9ed-67e5314d6095

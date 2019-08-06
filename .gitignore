@@ -12,3 +12,5 @@
 *.out
 
 cre_test.go
+
+*.bak

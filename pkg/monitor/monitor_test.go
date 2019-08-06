@@ -3,6 +3,8 @@ package monitor
 import (
 	"fmt"
 	"testing"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 var s = NewServer(AccessKey, AccessKeySecret)
@@ -37,19 +39,116 @@ monitor.SiteMonitor{Interval:1, CreateTime:"2018-12-20 17:30:56", Address:"http:
 monitor.SiteMonitor{Interval:1, CreateTime:"2018-12-20 17:31:58", Address:"https://openapi.haodai.com/SdTuiguang/checkstatus", OptionsJSON:struct { HTTPMethod string "json:\"http_method\""; TimeOut int "json:\"time_out\"" }{HTTPMethod:"get", TimeOut:30000}, UpdateTime:"2019-07-12 09:41:46", TaskID:"4d77518b-4be1-4c05-b51d-2b9f04e60019", TaskName:"flow_center-openapi-1", TaskState:1, TaskType:"HTTP"},
 */
 
+/*
+(monitor.SiteMonitor) {
+ Interval: (int) 1,
+ CreateTime: (string) (len=19) "2018-12-20 17:26:29",
+ Address: (string) (len=38) "https://loan.rongba.com/h5tuiguang/aff",
+ OptionsJSON: (monitor.OptionsJSON) {
+  HTTPMethod: (string) (len=3) "get",
+  TimeOut: (int) 30000
+ },
+ UpdateTime: (string) (len=19) "2019-07-12 09:41:46",
+ TaskID: (string) (len=36) "f5003de3-b957-48d3-8e0c-69271e04559e",
+ TaskName: (string) (len=27) "flow_center-loan.rongba.com",
+ TaskState: (int) 1,
+ TaskType: (string) (len=4) "HTTP"
+}
+
+(monitor.SiteMonitor) {
+ Interval: (int) 1,
+ CreateTime: (string) (len=19) "2019-06-11 10:50:09",
+ Address: (string) (len=23) "http://a.clwen.com:9000",
+ OptionsJSON: (monitor.OptionsJSON) {
+  HTTPMethod: (string) (len=3) "get",
+  TimeOut: (int) 30000
+ },
+ UpdateTime: (string) (len=19) "2019-07-12 10:50:33",
+ TaskID: (string) (len=36) "b47607e8-9826-4ba0-8f04-d27c8ca0670b",
+ TaskName: (string) (len=4) "test",
+ TaskState: (int) 2,
+ TaskType: (string) (len=4) "HTTP"
+}
+*/
 func TestList(t *testing.T) {
 	// fmt.Println("s", s)
-	r, err := s.ListMonitor("test")
+	r, err := s.ListMonitor("")
 	if err != nil {
 		t.Error("err", err)
 		return
 	}
 	fmt.Printf("got %v monitors\n", len(r.Data.SiteMonitors))
+	// return
 	for _, v := range r.Data.SiteMonitors {
+		// if i == 0 || v.TaskName == "test" || v.TaskName == "baidu.com" {
+		if v.TaskName == "baidu.com" {
+			spew.Dump(v)
+		}
 		fmt.Printf("%v->%v\n", v.TaskName, v.Address)
 		// spew.Dump("got",v)
 	}
 	// fmt.Printf("r: %v\n", r)
+}
+
+/*
+{"Interval":1,"CreateTime":"2018-12-20 17:26:29","Address":"https://loan.rongba.com/h5tuiguang/aff","OptionsJson":{"http_method":"get","time_out":30000},"UpdateTime":"2019-07-12 09:41:46","TaskId":"f5003de3-b957-48d3-8e0c-69271e04559e","TaskName":"flow_center-loan.rongba.com","TaskState":1,"TaskType":"HTTP"}
+
+    /home/wen/git/site-monitor-operator/pkg/monitor/monitor_test.go:109: err CreateSiteMonitor err: SDK.ServerError
+        ErrorCode: NameRepeat
+        Recommend:
+        RequestId: 7F392789-803B-4B97-A5C2-A39DCAE4D98E
+		Message: Task name repeat
+
+because SiteMonitor exist, we now delete it first, if it exist
+
+    /home/wen/git/site-monitor-operator/pkg/monitor/monitor_test.go:117: err CreateDefaultMetric err: create metricrule ResponseTime for baidu.com err: SDK.ServerError
+        ErrorCode: 400
+        Recommend:
+        RequestId: 370A508B-414A-419D-8EB5-2A61F6EF60A7
+		Message: Bad Request
+
+because missing req.RuleName = m.TaskID, fixed
+*/
+
+func TestCreateMonitor(t *testing.T) {
+	sm := SiteMonitor{
+		Interval:   1,
+		Address:    "http://www.baidu.com",
+		HTTPMethod: "get",
+		TimeOut:    30000,
+		TaskName:   "baidu.com",
+		TaskType:   "HTTP",
+		TaskState:  false,
+	}
+	err := s.CreateMonitor(sm)
+	if err != nil {
+		t.Error("err", err)
+		return
+	}
+}
+
+func TestDeleteMonitor(t *testing.T) {
+	err := s.DeleteMonitor("baidu.com")
+	if err != nil {
+		t.Error("err", err)
+		return
+	}
+}
+
+func TestDisableMonitor(t *testing.T) {
+	err := s.DisableMonitor("baidu.com")
+	if err != nil {
+		t.Error("err", err)
+		return
+	}
+}
+
+func TestEnableMonitor(t *testing.T) {
+	err := s.EnableMonitor("baidu.com")
+	if err != nil {
+		t.Error("err", err)
+		return
+	}
 }
 
 var examplebody = `

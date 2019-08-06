@@ -1,0 +1,64 @@
+DescribeMetricRuleList
+
+"Alarms": {
+		"Alarm": [
+			{
+				"Period": 60,
+				"GroupName": "",
+				"Webhook": "http://alialert.haodai.net",
+				"EffectiveInterval": "00:00-23:59",
+				"SourceType": "METRIC",
+				"RuleName": "",
+				"GroupId": "",
+				"NoEffectiveInterval": "",
+				"EnableState": true,
+				"AlertState": "OK",
+				"MetricName": "ResponseTime",
+				"SilenceTime": 86400,
+				"Dimensions": "",
+				"RuleId": "31bc7843-afd1-44ab-b9ed-67e5314d6095_ResponseTime",
+				"Namespace": "acs_networkmonitor",
+				"ContactGroups": "wen",
+				"Escalations": {
+					"Critical": {},
+					"Info": {},
+					"Warn": {
+						"Statistics": "Average",
+						"Threshold": "12000",
+						"Times": 3,
+						"ComparisonOperator": "GreaterThanThreshold"
+					}
+				},
+				"MailSubject": "${serviceType}-${metricName}-${levelDescription}通知（${dimensions}）",
+				"Resources": "[{\"taskId\":\"31bc7843-afd1-44ab-b9ed-67e5314d6095\"}]"
+			},
+			{
+				"Period": 60,
+				"GroupName": "",
+				"Webhook": "http://alialert.haodai.net",
+				"EffectiveInterval": "00:00-23:59",
+				"SourceType": "METRIC",
+				"RuleName": "test-a",
+				"GroupId": "",
+				"NoEffectiveInterval": "",
+				"EnableState": true,
+				"AlertState": "OK",
+				"MetricName": "Availability",
+				"SilenceTime": 86400,
+				"Dimensions": "",
+				"RuleId": "31bc7843-afd1-44ab-b9ed-67e5314d6095_Availability",
+				"Namespace": "acs_networkmonitor",
+				"ContactGroups": "wen",
+				"Escalations": {
+					"Critical": {},
+					"Info": {},
+					"Warn": {
+						"Statistics": "Availability",
+						"Threshold": "90",
+						"Times": 3,
+						"ComparisonOperator": "LessThanThreshold"
+					}
+				},
+				"MailSubject": "${serviceType}-${metricName}-${levelDescription}通知（${dimensions}）",
+				"Resources": "[{\"taskId\":\"31bc7843-afd1-44ab-b9ed-67e5314d6095\"}]"
+			},
