@@ -1,10 +1,10 @@
 apiVersion: sitemonitor.haodai.com/v1alpha1
 kind: SiteMonitor
 metadata:
-  name: baidu.com1
+  name: baidu.com
   namespace: yunwei
 spec:
-  TaskName: baidu.com1
+  TaskName: baidu.com
   TaskType: HTTP 
   HttpMethod: get  
   Timeout: 1000     

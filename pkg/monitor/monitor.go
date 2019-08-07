@@ -64,6 +64,8 @@ func (s *Server) ListMonitor(Keyword string) (r SiteMonitorResp, err error) {
 	req.PageSize = requests.NewInteger(10000) // we fetch all at once
 	req.Keyword = Keyword
 
+	req.SetHTTPSInsecure(true)
+
 	r, err = request(client, req)
 	if err != nil {
 		err = fmt.Errorf("request err: %v", err)

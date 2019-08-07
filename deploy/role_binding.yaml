@@ -1,11 +1,12 @@
-kind: RoleBinding
+kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: site-monitor-operator
 subjects:
 - kind: ServiceAccount
   name: site-monitor-operator
+  namespace: yunwei
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: site-monitor-operator
   apiGroup: rbac.authorization.k8s.io
