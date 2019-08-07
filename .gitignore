@@ -16,3 +16,5 @@ cre_test.go
 *.bak
 test.sh
 manager
+site-monitor-operator
+operator.yaml

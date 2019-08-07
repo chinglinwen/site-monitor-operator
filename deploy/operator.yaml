@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,16 +16,17 @@ spec:
       serviceAccountName: site-monitor-operator
       containers:
         - name: site-monitor-operator
-          # Replace this with the built image name
-          image: REPLACE_IMAGE
+          image: harbor.haodai.net/ops/site-monitor-operator:v1
           command:
           - site-monitor-operator
+          - --access-key
+          - KEY
+          - --access-secret
+          - SECRET
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+              value: ""
             - name: POD_NAME
               valueFrom:
                 fieldRef:
