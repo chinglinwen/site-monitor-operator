@@ -6,7 +6,7 @@ Aliyun site monitor operator
 > update deploy/operator.yaml.example, add accesskey and access secrets.
 > mv operator.yaml.example operator.yaml
 
-```
+```shell
 cd deploy
 kubectl apply -f .
 cd crds
@@ -16,7 +16,7 @@ kubectl apply -f .
 ## Example usage
 
 
-```
+```yaml
 kubectl apply -f - <<eof
 apiVersion: sitemonitor.haodai.com/v1alpha1
 kind: SiteMonitor
@@ -37,7 +37,7 @@ eof
 kubectl get sitemonitor
 ```
 
-```
+```yaml
 $ kubectl get sitemonitor
 NAME        AGE
 baidu.com   14s
@@ -81,3 +81,11 @@ $ kubectl delete sitemonitor baidu.com
 sitemonitor.sitemonitor.haodai.com "baidu.com" deleted
 $
 ```
+
+## CloudMonitor UI
+
+![sitemonitor1](doc/sitemonitor1.png)
+
+![sitemonitor1](doc/sitemonitor2.png)
+
+![sitemonitor1](doc/sitemonitor3.png)
