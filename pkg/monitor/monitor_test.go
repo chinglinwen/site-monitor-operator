@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	yaml "gopkg.in/yaml.v2"
 )
 
 var s = NewServer(AccessKey, AccessKeySecret)
@@ -100,27 +99,28 @@ func TestGetSiteMonitor(t *testing.T) {
 	spew.Dump("sm", sm)
 }
 
-func TestUnmarshalSiteMonitor(t *testing.T) {
-	a :=
-		`
-taskName: baidu.com1
-#askType: 
-httpMethod: get  
-timeout: 1     
-interval: 60    
-address: http://www.baidu.com     
-#taskState
-contactGroups: defaultGroup 
-`
+// yaml tag doesn't work, the following example is ok
+// func TestUnmarshalSiteMonitor(t *testing.T) {
+// 	a :=
+// 		`
+// TaskName: baidu.com
+// TaskType: HTTP
+// HttpMethod: get
+// Timeout: 1000
+// Interval: 1
+// Address: http://www.baidu.com
+// TaskState: true  # default to true
+// ContactGroups: defaultGroup
+// `
 
-	m := SiteMonitor{}
-	err := yaml.Unmarshal([]byte(a), &m)
-	if err != nil {
-		t.Error("err", err)
-		return
-	}
-	spew.Dump(m)
-}
+// 	m := SiteMonitor{}
+// 	err := yaml.Unmarshal([]byte(a), &m)
+// 	if err != nil {
+// 		t.Error("err", err)
+// 		return
+// 	}
+// 	spew.Dump(m)
+// }
 
 /*
 {"Interval":1,"CreateTime":"2018-12-20 17:26:29","Address":"https://loan.rongba.com/h5tuiguang/aff","OptionsJson":{"http_method":"get","time_out":30000},"UpdateTime":"2019-07-12 09:41:46","TaskId":"f5003de3-b957-48d3-8e0c-69271e04559e","TaskName":"flow_center-loan.rongba.com","TaskState":1,"TaskType":"HTTP"}
@@ -146,8 +146,8 @@ func TestCreateMonitor(t *testing.T) {
 	sm := SiteMonitor{
 		Interval:   1,
 		Address:    "http://www.baidu.com",
-		HTTPMethod: "get",
-		TimeOut:    30000,
+		HttpMethod: "get",
+		Timeout:    30000,
 		TaskName:   "baidu.com",
 		TaskType:   "HTTP",
 		TaskState:  false,

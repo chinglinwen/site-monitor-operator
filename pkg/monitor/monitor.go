@@ -104,8 +104,8 @@ func unquote(body string) (s string, err error) {
 	return
 }
 
+// sdk provided one doesn't work, so we unmarshal ourselves
 func unmrshalMonitorsBody(body string) (r SiteMonitorResp, err error) {
-	// fmt.Printf("body: %v\n", body)
 	s, err := unquote(body)
 	if err != nil {
 		err = fmt.Errorf("unquote err: %v, body: %v", err, body)
@@ -306,7 +306,7 @@ func (s *Server) compareAndUpdate(old, new SiteMonitor) (err error) {
 		update = true
 	}
 
-	// tasktype can't be modified?
+	// tasktype can't be modified
 	// if old.TaskType != new.TaskType {
 	// 	update = true
 	// }
@@ -513,7 +513,6 @@ func (s *Server) DeleteMonitor(taskname string) (err error) {
 		err = fmt.Errorf("deletemonitor for %v err: %v", taskname, err)
 		return
 	}
-	// fmt.Printf("response is %#v\n", response)
 	return
 }
 
@@ -598,8 +597,6 @@ func (s *Server) DisableMonitor(taskname string) (err error) {
 		err = fmt.Errorf("DisableMonitor for %v err: %v", taskname, err)
 		return
 	}
-	// fmt.Printf("response is %#v\n", response)
-
 	return
 }
 
@@ -630,7 +627,5 @@ func (s *Server) EnableMonitor(taskname string) (err error) {
 		err = fmt.Errorf("EnableMonitor for %v err: %v", taskname, err)
 		return
 	}
-	// fmt.Printf("response is %#v\n", response)
-
 	return
 }
