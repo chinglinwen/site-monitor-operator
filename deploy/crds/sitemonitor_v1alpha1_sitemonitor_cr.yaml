@@ -1,7 +1,14 @@
 apiVersion: sitemonitor.haodai.com/v1alpha1
 kind: SiteMonitor
 metadata:
-  name: example-sitemonitor
+  name: baidu.com1
+  namespace: yunwei
 spec:
-  # Add fields here
-  size: 3
+  TaskName: baidu.com1
+  TaskType: HTTP 
+  HttpMethod: get  
+  Timeout: 1000     
+  Interval: 1    
+  Address: http://www.baidu.com     
+  TaskState: true  # default to true
+  ContactGroups: defaultGroup 

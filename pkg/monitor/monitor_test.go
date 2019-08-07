@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var s = NewServer(AccessKey, AccessKeySecret)
@@ -90,6 +91,37 @@ func TestList(t *testing.T) {
 	// fmt.Printf("r: %v\n", r)
 }
 
+func TestGetSiteMonitor(t *testing.T) {
+	sm, err := s.getSiteMonitor("baidu.com")
+	if err != nil {
+		t.Error("err", err)
+		return
+	}
+	spew.Dump("sm", sm)
+}
+
+func TestUnmarshalSiteMonitor(t *testing.T) {
+	a :=
+		`
+taskName: baidu.com1
+#askType: 
+httpMethod: get  
+timeout: 1     
+interval: 60    
+address: http://www.baidu.com     
+#taskState
+contactGroups: defaultGroup 
+`
+
+	m := SiteMonitor{}
+	err := yaml.Unmarshal([]byte(a), &m)
+	if err != nil {
+		t.Error("err", err)
+		return
+	}
+	spew.Dump(m)
+}
+
 /*
 {"Interval":1,"CreateTime":"2018-12-20 17:26:29","Address":"https://loan.rongba.com/h5tuiguang/aff","OptionsJson":{"http_method":"get","time_out":30000},"UpdateTime":"2019-07-12 09:41:46","TaskId":"f5003de3-b957-48d3-8e0c-69271e04559e","TaskName":"flow_center-loan.rongba.com","TaskState":1,"TaskType":"HTTP"}
 
@@ -131,6 +163,14 @@ func TestDeleteMonitor(t *testing.T) {
 	err := s.DeleteMonitor("baidu.com")
 	if err != nil {
 		t.Error("err", err)
+		return
+	}
+}
+
+func TestCreateDefaultMetric(t *testing.T) {
+	err := s.CreateDefaultMetric("baidu.com", "wen1")
+	if err != nil {
+		t.Errorf("CreateDefaultMetric err: %v", err)
 		return
 	}
 }

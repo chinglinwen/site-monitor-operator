@@ -14,3 +14,5 @@
 cre_test.go
 
 *.bak
+test.sh
+manager

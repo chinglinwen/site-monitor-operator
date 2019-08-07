@@ -39,6 +39,18 @@ func (s *Server) getclient() (client *cms.Client, err error) {
 	}
 	return s.client, nil
 }
+func (s *Server) CheckAtStart() {
+	r, err := s.ListMonitorAll()
+	if err != nil {
+		log.Fatal("check at start error", err)
+		return
+	}
+	log.Printf("got %v existing monitor\n", len(r.Data.SiteMonitors))
+}
+
+func (s *Server) ListMonitorAll() (r SiteMonitorResp, err error) {
+	return s.ListMonitor("")
+}
 
 // Keyword is the taskname,  empty key will list all
 func (s *Server) ListMonitor(Keyword string) (r SiteMonitorResp, err error) {
@@ -106,20 +118,17 @@ func unmrshalMonitorsBody(body string) (r SiteMonitorResp, err error) {
 	return
 }
 
-type OptionsJSON struct {
-	HTTPMethod string `json:"http_method"`
-	TimeOut    int    `json:"time_out"`
-}
-
 type SiteMonitor struct {
-	TaskName   string `json:"TaskName"`
-	TaskType   string `json:"TaskType"`
-	HTTPMethod string `json:"http_method"`
-	TimeOut    int    `json:"time_out"`
+	TaskName      string `yaml:"taskName" json:"TaskName"`
+	TaskType      string `yaml:"taskType" json:"TaskType"`
+	HttpMethod    string `yaml:"httpMethod" json:"HttpMethod"`
+	Timeout       int    `yaml:"timeout" json:"Timeout"`   // milli-seconds
+	Interval      int    `yaml:"interval" json:"Interval"` // minutes
+	Address       string `yaml:"address" json:"Address"`
+	TaskState     bool   `yaml:"taskState" json:"TaskState"` // default enabled
+	ContactGroups string `yaml:"contactGroups" json:"ContactGroups"`
 
-	Interval  int    `json:"Interval"`
-	Address   string `json:"Address"`
-	TaskState bool   `json:"TaskState"` // default enabled
+	taskid string
 }
 
 // for unmarshal purpose
@@ -130,7 +139,7 @@ type SiteMonitorRaw struct {
 	Address  string `json:"Address"`
 
 	TaskID    string `json:"TaskId"`    // unmarshal needed this
-	TaskState int    `json:"TaskState"` // default enabled
+	TaskState int    `json:"TaskState"` // default enabled, using bool will cause error
 
 	OptionsJSON OptionsJSON `json:"OptionsJson"`
 	// OptionsJSON struct {
@@ -139,6 +148,11 @@ type SiteMonitorRaw struct {
 	// } `json:"OptionsJson"`
 	CreateTime string `json:"CreateTime"`
 	UpdateTime string `json:"UpdateTime"`
+}
+
+type OptionsJSON struct {
+	HTTPMethod string `json:"http_method"`
+	TimeOut    int    `json:"time_out"`
 }
 
 type SiteMonitorResp struct {
@@ -173,24 +187,25 @@ func SiteMonitorToCreateReq(s SiteMonitor) (r *cms.CreateSiteMonitorRequest) {
 	// r.IspCities
 
 	op, _ := json.Marshal(OptionsJSON{
-		HTTPMethod: s.HTTPMethod,
-		TimeOut:    s.TimeOut,
+		HTTPMethod: s.HttpMethod,
+		TimeOut:    s.Timeout,
 	})
 	r.OptionsJson = string(op)
 	return
 }
 
-func SiteMonitorToModReq(s SiteMonitor) (r *cms.ModifySiteMonitorRequest) {
+func SiteMonitorToModReq(s SiteMonitor, taskid string) (r *cms.ModifySiteMonitorRequest) {
 	r = cms.CreateModifySiteMonitorRequest()
 
 	// r.TaskType = s.TaskType
 	r.TaskName = s.TaskName
 	r.Interval = strconv.Itoa(s.Interval)
 	r.Address = s.Address
+	r.TaskId = taskid
 
 	op, _ := json.Marshal(OptionsJSON{
-		HTTPMethod: s.HTTPMethod,
-		TimeOut:    s.TimeOut,
+		HTTPMethod: s.HttpMethod,
+		TimeOut:    s.Timeout,
 	})
 	r.OptionsJson = string(op)
 	return
@@ -219,6 +234,115 @@ type CreateHostAvailabilityRequest struct {
     AlertConfigWebHook                 string                                             `position:"Query" name:"AlertConfig.WebHook"`
 }
 */
+func validateSiteMonitor(sm SiteMonitor) (err error) {
+	if sm.TaskName == "" {
+		err = fmt.Errorf("empty TaskName")
+		return
+	}
+	if sm.Address == "" {
+		err = fmt.Errorf("empty Address")
+		return
+	}
+	if sm.TaskType != "HTTP" {
+		err = fmt.Errorf("expect TaskType: HTTP for now")
+		return
+	}
+	if sm.HttpMethod == "" {
+		err = fmt.Errorf("empty HTTPMethod")
+		return
+	}
+	if sm.ContactGroups == "" {
+		err = fmt.Errorf("empty ContactGroups")
+		return
+	}
+	if sm.Interval == 0 {
+		err = fmt.Errorf("zero Interval")
+		return
+	}
+	return nil
+}
+
+// it will fetch,compare,update, or create if not exist
+func (s *Server) UpdateMonitor(new SiteMonitor) (err error) {
+	if e := validateSiteMonitor(new); e != nil {
+		err = fmt.Errorf("validateSiteMonitor for %v err: %v", new.TaskName, e)
+		return
+	}
+	old, err := s.getSiteMonitor(new.TaskName)
+	if err == nil {
+		log.Printf("got existing monitor, try sync for %v...", new.TaskName)
+		// update if it has difference
+		err = s.compareAndUpdate(old, new)
+		if err != nil {
+			err = fmt.Errorf("compareAndUpdate for %v err:%v", new.TaskName, err)
+			return
+		}
+		return
+	}
+
+	// create if not exist
+	err = s.CreateMonitor(new)
+	if err != nil {
+		err = fmt.Errorf("CreateMonitor err:%v", err)
+		return
+	}
+	log.Printf("created new monitor %v\n", new.TaskName)
+	return
+}
+func (s *Server) compareAndUpdate(old, new SiteMonitor) (err error) {
+	if old.TaskState != new.TaskState {
+		if new.TaskState {
+			log.Printf("sync state: enabled monitor %v\n", new.TaskName)
+			s.EnableMonitor(new.TaskName)
+		} else {
+			log.Printf("sync state: enabled monitor %v\n", new.TaskName)
+			s.DisableMonitor(new.TaskName)
+		}
+	}
+	var update bool
+	if old.HttpMethod != new.HttpMethod {
+		update = true
+	}
+
+	// tasktype can't be modified?
+	// if old.TaskType != new.TaskType {
+	// 	update = true
+	// }
+
+	if old.Timeout != new.Timeout {
+		update = true
+	}
+	if old.Interval != new.Interval {
+		update = true
+	}
+	if old.Address != new.Address {
+		update = true
+	}
+	//ContactGroups
+	if update {
+		err = s.ModifyMonitor(new)
+		if err != nil {
+			err = fmt.Errorf("ModifyMonitor err: %v", err)
+			return
+		}
+		log.Printf("updated for %v\n", new.TaskName)
+	} else {
+		log.Printf("no need update for %v\n", new.TaskName)
+	}
+
+	if old.ContactGroups == new.ContactGroups {
+		log.Printf("no need update contactgroups for %v\n", new.TaskName)
+		return
+	}
+
+	err = s.compareAndUpdateMetricRule(new.TaskName, new.ContactGroups)
+	if err != nil {
+		err = fmt.Errorf("compareAndUpdateMetricRule err: %v", err)
+		return
+	}
+
+	return
+}
 
 func (s *Server) CreateMonitor(sm SiteMonitor) (err error) {
 	client, err := s.getclient()
@@ -251,7 +375,7 @@ func (s *Server) CreateMonitor(sm SiteMonitor) (err error) {
 	}
 	// fmt.Printf("response is %#v\n", response)
 
-	err = s.CreateDefaultMetric(sm.TaskName)
+	err = s.CreateDefaultMetric(sm.TaskName, sm.ContactGroups)
 	if err != nil {
 		err = fmt.Errorf("CreateDefaultMetric err: %v", err)
 		return
@@ -259,18 +383,22 @@ func (s *Server) CreateMonitor(sm SiteMonitor) (err error) {
 	return
 }
 
-func (s *Server) CreateDefaultMetric(taskname string) (err error) {
+// It can be directly re-create with different contactgroups, it will overwrite it
+func (s *Server) CreateDefaultMetric(taskname, contactGroups string) (err error) {
 	taskid, err := s.gettaskid(taskname)
 	if err != nil {
 		err = fmt.Errorf("gettaskid for %v err: %v", taskname, err)
 		return
+	}
+	if contactGroups == "" {
+		contactGroups = "defaultGroup" // need exist
 	}
 
 	m1 := &MetricRule{
 		// TaskName: taskname,
 		TaskID:        taskid,
 		MetricName:    "ResponseTime",
-		ContactGroups: "wen",
+		ContactGroups: contactGroups,
 
 		EffectiveInterval: "00:00-23:59",
 		SilenceTime:       86400,
@@ -294,7 +422,7 @@ func (s *Server) CreateDefaultMetric(taskname string) (err error) {
 		// TaskName: taskname,
 		TaskID:        taskid,
 		MetricName:    "Availability",
-		ContactGroups: "wen",
+		ContactGroups: contactGroups,
 
 		EffectiveInterval: "00:00-23:59",
 		SilenceTime:       86400,
@@ -341,12 +469,22 @@ func (s *Server) ModifyMonitor(sm SiteMonitor) (err error) {
 		err = fmt.Errorf("create client err: %v", err)
 		return
 	}
-	request := SiteMonitorToModReq(sm)
-	response, err := client.ModifySiteMonitor(request)
+	taskid, err := s.gettaskid(sm.TaskName)
 	if err != nil {
-		fmt.Print(err.Error())
+		err = fmt.Errorf("gettaskid for %v err: %v", sm.TaskName, err)
+		return
 	}
-	fmt.Printf("response is %#v\n", response)
+
+	request := SiteMonitorToModReq(sm, taskid)
+	_, err = client.ModifySiteMonitor(request)
+	if err != nil {
+		if strings.Contains(err.Error(), "JsonUnmarshalError") {
+			err = nil
+			return
+		}
+		err = fmt.Errorf("CreateDefaultMetric err: %v", err)
+		return
+	}
 	return
 }
 
@@ -377,7 +515,12 @@ func (s *Server) DeleteMonitor(taskname string) (err error) {
 	return
 }
 
-func (s *Server) gettaskid(taskname string) (taskid string, err error) {
+const (
+	TaskEnabled  int = 1
+	TaskDisabled     = 2
+)
+
+func (s *Server) getSiteMonitor(taskname string) (sm SiteMonitor, err error) {
 	r, err := s.ListMonitor(taskname)
 	if err != nil {
 		err = fmt.Errorf("try find taskid for %v by listmonitor err: %v", taskname, err)
@@ -388,7 +531,41 @@ func (s *Server) gettaskid(taskname string) (taskid string, err error) {
 		err = fmt.Errorf("error find taskid for %v, expect 1 result, got %v results", taskname, n)
 		return
 	}
-	taskid = r.Data.SiteMonitors[0].TaskID
+
+	raw := r.Data.SiteMonitors[0]
+	sm = SiteMonitor{
+		TaskName:   raw.TaskName,
+		TaskType:   raw.TaskType,
+		HttpMethod: raw.OptionsJSON.HTTPMethod,
+		Timeout:    raw.OptionsJSON.TimeOut,
+		Interval:   raw.Interval,
+		Address:    raw.Address,
+		TaskState:  raw.TaskState == TaskEnabled,
+		// ContactGroups :raw.ContactGroups, // can't get his now?
+		taskid: raw.TaskID,
+	}
+	return
+}
+
+func (s *Server) GetTaskState(taskname string) (state bool, err error) {
+	sm, err := s.getSiteMonitor(taskname)
+	if err != nil {
+		return
+	}
+	state = sm.TaskState
+	return
+}
+
+func (s *Server) gettaskid(taskname string) (taskid string, err error) {
+	if taskname == "" {
+		err = fmt.Errorf("empty taskname")
+		return
+	}
+	sm, err := s.getSiteMonitor(taskname)
+	if err != nil {
+		return
+	}
+	taskid = sm.taskid
 	return
 }
 

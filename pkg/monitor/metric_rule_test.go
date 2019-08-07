@@ -3,6 +3,8 @@ package monitor
 import (
 	"fmt"
 	"testing"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestMetricRuleList(t *testing.T) {
@@ -23,6 +25,16 @@ func TestMetricRuleList(t *testing.T) {
 	// 	// spew.Dump("got",v)
 	// }
 	// fmt.Printf("r: %v\n", r)
+}
+
+func TestGetMetricRule(t *testing.T) {
+	// fmt.Println("s", s)
+	r, err := s.GetMetricRule("baidu.com")
+	if err != nil {
+		t.Error("err", err)
+		return
+	}
+	spew.Dump(r)
 }
 
 /*

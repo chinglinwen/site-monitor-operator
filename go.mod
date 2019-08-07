@@ -5,10 +5,13 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20190805094258-26f0a5c2d5dc
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.7.0 // indirect
+	github.com/go-logr/logr v0.1.0
 	github.com/hokaccha/go-prettyjson v0.0.0-20180920040306-f579f869bbfe
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/operator-framework/operator-sdk v0.9.1-0.20190724001845-d6e1aba9fa51
 	github.com/spf13/pflag v1.0.3
+	github.com/tidwall/gjson v1.3.2
+	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
 	k8s.io/client-go v11.0.0+incompatible

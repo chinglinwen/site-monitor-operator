@@ -13,6 +13,8 @@ import (
 
 	"wen/site-monitor-operator/pkg/apis"
 	"wen/site-monitor-operator/pkg/controller"
+	"wen/site-monitor-operator/pkg/controller/sitemonitor"
+	"wen/site-monitor-operator/pkg/monitor"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
@@ -44,6 +46,11 @@ func printVersion() {
 	log.Info(fmt.Sprintf("Version of operator-sdk: %v", sdkVersion.Version))
 }
 
+var (
+	accessKey    = pflag.StringP("access-key", "", "", "aliyun cloudmonitor access key")
+	accessSecret = pflag.StringP("access-secret", "", "", "aliyun cloudmonitor access Secret")
+)
+
 func main() {
 	// Add the zap logger flag set to the CLI. The flag set must
 	// be added before calling pflag.Parse().
@@ -54,6 +61,10 @@ func main() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	pflag.Parse()
+
+	s := monitor.NewServer(*accessKey, *accessSecret)
+	s.CheckAtStart()
+	sitemonitor.S = s // init server
 
 	// Use a zap logr.Logger implementation. If none of the zap
 	// flags are configured (or if the zap flag set is not being

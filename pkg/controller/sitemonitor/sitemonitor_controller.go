@@ -2,17 +2,15 @@ package sitemonitor
 
 import (
 	"context"
+	"reflect"
 
 	sitemonitorv1alpha1 "wen/site-monitor-operator/pkg/apis/sitemonitor/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -101,54 +99,130 @@ func (r *ReconcileSiteMonitor) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
+	// spew.Dump("instance", instance)
 
-	// Set SiteMonitor instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	// Define a new site monitor, it will fetch,compare,update, or create if not exist
+	err = updateSiteMonitorForCR(instance)
+	if err != nil {
+		reqLogger.Error(err, "newSiteMonitorForCR", instance.GetName())
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+	// Check monitor status
+	state, err := S.GetTaskState(instance.Spec.TaskName)
+	if err != nil {
+		reqLogger.Error(err, "GetTaskState", instance.GetName())
+		return reconcile.Result{}, err
+	}
+
+	alertstate, err := S.GetAlertState(instance.Spec.TaskName)
+	if err != nil {
+		reqLogger.Error(err, "GetAlertState", instance.GetName())
+		return reconcile.Result{}, err
+	}
+
+	// Ensure the monitor status is the same as the spec
+	if instance.Spec.TaskState != state {
+		// we don't update state spec, so no need this?
+
+		// Spec updated - return and requeue
+		return reconcile.Result{Requeue: true}, nil
+	}
+
+	var updatestatus bool
+	// Update status.Nodes if needed
+	if !reflect.DeepEqual(state, instance.Status.TaskState) {
+		instance.Status.TaskState = state
+		updatestatus = true
+	}
+	if !reflect.DeepEqual(alertstate, instance.Status.AlertState) {
+		instance.Status.AlertState = alertstate
+		updatestatus = true
+	}
+	if updatestatus {
+		err := r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
+			reqLogger.Error(err, "Failed to update sitemonitor status.")
 			return reconcile.Result{}, err
 		}
-
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
 	}
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	// Check if the SiteMonitor instance is marked to be deleted, which is
+	// indicated by the deletion timestamp being set.
+	isSiteMonitorMarkedToBeDeleted := instance.GetDeletionTimestamp() != nil
+	if isSiteMonitorMarkedToBeDeleted {
+		if contains(instance.GetFinalizers(), sitemonitorFinalizer) {
+			// Run finalization logic for instanceFinalizer. If the
+			// finalization logic fails, don't remove the finalizer so
+			// that we can retry during the next reconciliation.
+			if err := r.finalizeSiteMonitor(reqLogger, instance); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			// Remove instanceFinalizer. Once all finalizers have been
+			// removed, the object will be deleted.
+			instance.SetFinalizers(remove(instance.GetFinalizers(), sitemonitorFinalizer))
+			err := r.client.Update(context.TODO(), instance)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		return reconcile.Result{}, nil
+	}
+
+	// Add finalizer for this CR
+	if !contains(instance.GetFinalizers(), sitemonitorFinalizer) {
+		if err := r.addFinalizer(reqLogger, instance); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	// // Set SiteMonitor instance as the owner and controller
+	// if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	// 	return reconcile.Result{}, err
+	// }
+
+	// // Check if this Pod already exists
+	// found := &corev1.Pod{}
+	// err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	// if err != nil && errors.IsNotFound(err) {
+	// 	reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+	// 	err = r.client.Create(context.TODO(), pod)
+	// 	if err != nil {
+	// 		return reconcile.Result{}, err
+	// 	}
+
+	// 	// Pod created successfully - don't requeue
+	// 	return reconcile.Result{}, nil
+	// } else if err != nil {
+	// 	return reconcile.Result{}, err
+	// }
+
+	// // Pod already exists - don't requeue
+	// reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+
 	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *sitemonitorv1alpha1.SiteMonitor) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
-	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
-	}
-}
+// // newPodForCR returns a busybox pod with the same name/namespace as the cr
+// func newPodForCR(cr *sitemonitorv1alpha1.SiteMonitor) *corev1.Pod {
+// 	labels := map[string]string{
+// 		"app": cr.Name,
+// 	}
+// 	return &corev1.Pod{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      cr.Name + "-pod",
+// 			Namespace: cr.Namespace,
+// 			Labels:    labels,
+// 		},
+// 		Spec: corev1.PodSpec{
+// 			Containers: []corev1.Container{
+// 				{
+// 					Name:    "busybox",
+// 					Image:   "busybox",
+// 					Command: []string{"sleep", "3600"},
+// 				},
+// 			},
+// 		},
+// 	}
+// }

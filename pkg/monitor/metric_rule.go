@@ -38,10 +38,70 @@ func (s *Server) MetricRuleList() (response *cms.DescribeMetricRuleListResponse,
 
 	req := cms.CreateDescribeMetricRuleListRequest()
 	req.Scheme = "https"
-	// req.PageSize = requests.Integer("10000")
-	// req.TaskName = "test"
+	req.PageSize = "10000"
 
 	return client.DescribeMetricRuleList(req)
+}
+
+func (s *Server) GetMetricRule(taskname string) (alarms []cms.Alarm, err error) {
+	taskid, err := s.gettaskid(taskname)
+	if err != nil {
+		err = fmt.Errorf("gettaskid for %v err: %v", taskname, err)
+		return
+	}
+	r, err := s.MetricRuleList()
+	if err != nil {
+		err = fmt.Errorf("MetricRuleList err: %v", err)
+		return
+	}
+
+	// fmt.Printf("got %v alarms\n", len(r.Alarms.Alarm))
+	for _, v := range r.Alarms.Alarm {
+		if v.RuleName == taskid {
+			alarms = append(alarms, v)
+		}
+	}
+	if len(alarms) == 0 {
+		err = fmt.Errorf("no metricrules been found")
+		return
+	}
+	return
+}
+
+func (s *Server) GetAlertState(taskname string) (alertstate string, err error) {
+	alarms, err := s.GetMetricRule(taskname)
+	if err != nil {
+		return
+	}
+	for i, v := range alarms {
+		if i == 0 {
+			alertstate = fmt.Sprintf("%v: %v", v.MetricName, v.AlertState)
+			continue
+		}
+		alertstate = fmt.Sprintf("%v, %v: %v", alertstate, v.MetricName, v.AlertState)
+	}
+	return
+}
+
+func (s *Server) compareAndUpdateMetricRule(taskname, contactgroups string) (err error) {
+	alarms, err := s.GetMetricRule(taskname)
+	if err != nil {
+		return
+	}
+	var update bool
+	for _, v := range alarms {
+		if v.ContactGroups != contactgroups {
+			update = true
+		}
+	}
+	if update {
+		err = s.CreateDefaultMetric(taskname, contactgroups)
+		if err != nil {
+			err = fmt.Errorf("CreateDefaultMetric err: %v", err)
+			return
+		}
+	}
+	return
 }
 
 // convert MetricRule to request struct
