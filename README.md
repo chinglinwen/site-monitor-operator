@@ -3,7 +3,8 @@ Aliyun site monitor operator
 
 ## Install
 
-> update deploy/operator.yaml, add accesskey and access secrets.
+> update deploy/operator.yaml.example, add accesskey and access secrets.
+> mv operator.yaml.example operator.yaml
 
 ```
 cd deploy
